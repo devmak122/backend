@@ -5,10 +5,8 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = "your_jwt_secret"; // Replace this with your own secret
 
-const JWT_SECRET = "DEV IS A GOOD DEVELOPER";
-
-// Create a user using :post "api/auth/createuser". No login required
 router.post(
   "/createuser",
   [
@@ -27,31 +25,30 @@ router.post(
     }
 
     try {
-      // Check whether the user with this email already exists
       let user = await User.findOne({ email: req.body.email });
       if (user) {
-        return res
-          .status(400)
-          .json({ error: "A user with this email already exists" });
+        return res.status(400).json({ error: "A user with this email already exists" });
       }
 
-      // Hash the password before saving
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-      // Create a new user
       user = await User.create({
         name: req.body.name,
         email: req.body.email,
         password: hashedPassword,
       });
 
-      const data={
-        id:user.id
-      }
-      const jwtData=jwt.sign (data,JWT_SECRET);
-      // Send success response
-      res.json({ message: "User created successfully", user });
+      const payload = {
+        user: {
+          id: user.id,
+        },
+      };
+
+      jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
+        if (err) throw err;
+        res.json({ token });
+      });
     } catch (err) {
       console.error(err.message);
       res.status(500).send("Internal Server Error");
